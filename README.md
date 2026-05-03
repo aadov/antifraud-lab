@@ -73,3 +73,20 @@ Grafana дашборд включает 5 панелей:
 - **TOP IP** - источники атак по IP
 - **TOP users** - пользователи с наибольшим числом блокировок
 - **География** - распределение атак по странам
+
+## Grafana provisioning
+
+Настройки Grafana хранятся в репозитории и автоматически применяются при запуске контейнера:
+
+- `provisioning/datasources/loki.yaml` создает datasource Loki со стабильным UID `loki`
+- `provisioning/dashboards/dashboard.yaml` подключает папку с JSON-дашбордами
+- `dashboards/antifraud-dashboard.json` содержит дашборд Antifraud Lab
+
+После обновления на VPS применить настройки можно так:
+
+```bash
+git pull
+docker compose up -d --force-recreate grafana
+```
+
+Если Grafana уже была запущена со старым volume и дашборд не обновился, перезапусти только Grafana. Удалять `grafana_data` обычно не нужно.

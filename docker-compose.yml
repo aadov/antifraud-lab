@@ -52,6 +52,8 @@ services:
       - loki
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
     env_file:
       - .env
 

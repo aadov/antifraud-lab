@@ -1,0 +1,44 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: antifraud-alerts
+    folder: Antifraud
+    interval: 1m
+    rules:
+      - uid: high-block-rate
+        title: High BLOCK rate
+        condition: C
+        data:
+          - refId: A
+            queryType: range
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: 'sum(count_over_time({job="docker"} |= "login_risk_evaluated" | json | __error__="" | line_format "{{.log}}" | json | decision="BLOCK" [5m]))'
+              queryType: range
+              refId: A
+          - refId: B
+            queryType: range
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: 'sum(count_over_time({job="docker"} |= "login_risk_evaluated" | json | __error__="" | line_format "{{.log}}" | json [5m]))'
+              queryType: range
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A / $B * 100"
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "BLOCK rate превысил 50% за последние 5 минут"
+        labels: {}
+        isPaused: false

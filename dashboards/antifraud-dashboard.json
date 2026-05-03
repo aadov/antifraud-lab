@@ -286,7 +286,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (decision) (count_over_time({job=\"docker\"} |= \"login_risk_evaluated\" | json | __error__=\"\" | line_format \"{{.log}}\" | json [1m]))",
+          "expr": "sum by (decision) (count_over_time({job=\"docker\"} |= \"login_risk_evaluated\" | json | __error__=\"\" | line_format \"{{.log}}\" | json | decision=~"ALLOW|2FA|BLOCK" [1m]))",
           "queryType": "range",
           "refId": "A"
         }

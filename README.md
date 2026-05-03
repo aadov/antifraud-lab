@@ -90,3 +90,13 @@ docker compose up -d --force-recreate grafana
 ```
 
 Если Grafana уже была запущена со старым volume и дашборд не обновился, перезапусти только Grafana. Удалять `grafana_data` обычно не нужно.
+
+## VPS access
+
+On the VPS, Grafana is served through nginx over HTTPS:
+
+- Grafana: `https://antifraud-aadov.duckdns.org/`
+- Dashboard: `https://antifraud-aadov.duckdns.org/d/antifraud-lab/antifraud-lab`
+- FastAPI through nginx: `https://antifraud-aadov.duckdns.org/fraud-api/`
+
+Docker service ports are bound to `127.0.0.1` and are not intended to be exposed directly to the internet.

@@ -2,7 +2,7 @@ services:
   web:
     build: .
     ports:
-      - "8100:8000"
+      - "127.0.0.1:8100:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -19,7 +19,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d antifraud"]
       interval: 5s
@@ -29,7 +29,7 @@ services:
   loki:
     image: grafana/loki:2.9.4
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - loki_data:/loki
@@ -47,9 +47,17 @@ services:
   grafana:
     image: grafana/grafana:10.4.2
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       - loki
+    environment:
+      GF_SERVER_DOMAIN: antifraud-aadov.duckdns.org
+      GF_SERVER_ROOT_URL: https://antifraud-aadov.duckdns.org/
+      GF_SERVER_PROTOCOL: http
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro

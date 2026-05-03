@@ -1,13 +1,85 @@
+# Antifraud Lab
+
+Учебный SOC pipeline на базе FastAPI + PostgreSQL + Loki + Grafana.
+Симулирует антифрод систему с real-time мониторингом и алертами в Telegram.
+
+## Архитектура
+
+```
+                        Internet
+                            │
+                       nginx 80/443
+                       Let's Encrypt
+                            │
+              ┌─────────────┼─────────────┐
+              │                           │
+         /fraud-api/                      /
+        FastAPI :8100               Grafana :3001
+              │                           │
+         PostgreSQL :5433            Loki :3100
+              │                           │
+           Promtail ◄──── Docker logs ────┘
+```
+
+Все внутренние порты слушают только `127.0.0.1`. Наружу открыты только 80/443 через nginx.
+
+## Стек
+
+- **FastAPI** — API сервис с Pydantic валидацией и JSON логированием
+- **PostgreSQL** — хранение событий и истории пользователей
+- **Loki + Promtail** — сбор и хранение логов
+- **Grafana** — дашборд и алерты
+- **Docker Compose** — оркестрация 6 сервисов
+- **nginx + Let's Encrypt** — reverse proxy с SSL
+
 ## Быстрый старт
+
+### 1. Клонируй репозиторий
 
 ```bash
 git clone https://github.com/aadov/antifraud-lab.git
 cd antifraud-lab
+```
+
+### 2. Создай `.env`
+
+```bash
+cp .env.example .env
+```
+
+Заполни переменные:
+
+```env
+# Telegram алерты
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+
+# Grafana SMTP (опционально)
+GF_SMTP_ENABLED=true
+GF_SMTP_HOST=smtp.gmail.com:587
+GF_SMTP_USER=your@gmail.com
+GF_SMTP_PASSWORD=your_app_password
+GF_SMTP_FROM_ADDRESS=your@gmail.com
+GF_SMTP_FROM_NAME=Grafana
+GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
+```
+
+Получить `TELEGRAM_CHAT_ID`:
+
+```bash
+# Напиши боту любое сообщение, потом:
+curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
+# Ищи "chat":{"id": ЧИСЛО}
+```
+
+### 3. Запусти
+
+```bash
 docker compose up -d
 ```
 
-API доступен на `http://localhost:8100`
-Grafana доступна на `http://localhost:3001` (admin/admin)
+- API: `http://localhost:8100`
+- Grafana: `http://localhost:3001` (admin/admin)
 
 ## API
 
@@ -16,6 +88,7 @@ Grafana доступна на `http://localhost:3001` (admin/admin)
 Принимает событие входа и возвращает оценку риска.
 
 Пример запроса:
+
 ```json
 {
   "user_id": "client_001",
@@ -28,6 +101,7 @@ Grafana доступна на `http://localhost:3001` (admin/admin)
 ```
 
 Пример ответа:
+
 ```json
 {
   "risk_score": 95,
@@ -64,39 +138,72 @@ Grafana доступна на `http://localhost:3001` (admin/admin)
 | >= 40 | 2FA |
 | < 40 | ALLOW |
 
+## Генерация трафика
+
+`seed.sh` симулирует три сценария атак:
+
+```bash
+bash seed.sh
+```
+
+- **burst** — массовая атака с одного IP
+- **impossible_travel** — смена страны за короткое время
+- **normal** — легитимный трафик для фона
+
 ## Дашборд
 
 Grafana дашборд включает 5 панелей:
 
-- **Block/2FA/Allow** - распределение решений по времени
-- **BLOCK rate %** - процент блокировок
-- **TOP IP** - источники атак по IP
-- **TOP users** - пользователи с наибольшим числом блокировок
-- **География** - распределение атак по странам
+| Панель | Описание |
+|--------|----------|
+| Block\|2FA\|Allow | Распределение решений по времени |
+| BLOCK rate % | Процент блокировок |
+| TOP IP BLOCK | Источники атак по IP |
+| TOP users BLOCK | Пользователи с наибольшим числом блокировок |
+| География атак | Распределение по странам |
 
-## Grafana provisioning
+## Алерты
 
-Настройки Grafana хранятся в репозитории и автоматически применяются при запуске контейнера:
+### Telegram
 
-- `provisioning/datasources/loki.yaml` создает datasource Loki со стабильным UID `loki`
-- `provisioning/dashboards/dashboard.yaml` подключает папку с JSON-дашбордами
-- `dashboards/antifraud-dashboard.json` содержит дашборд Antifraud Lab
+Алерт `High BLOCK rate` срабатывает когда BLOCK rate превышает 50% за 5 минут.
 
-После обновления на VPS применить настройки можно так:
+Настройка через provisioning — токен и chat_id берутся из `.env`:
+
+```
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
+```
+
+Конфиги алертов: `provisioning/alerting/`
+
+## Grafana Provisioning
+
+Все настройки Grafana хранятся в репозитории и применяются автоматически при запуске:
+
+| Файл | Назначение |
+|------|-----------|
+| `provisioning/datasources/loki.yaml` | Datasource Loki с UID `loki` |
+| `provisioning/dashboards/dashboard.yaml` | Подключение папки с дашбордами |
+| `provisioning/alerting/contactpoints.yaml` | Telegram contact point |
+| `provisioning/alerting/rules.yaml` | Правило High BLOCK rate |
+| `dashboards/antifraud-dashboard.json` | JSON дашборда |
+
+После обновления на VPS:
 
 ```bash
 git pull
 docker compose up -d --force-recreate grafana
 ```
 
-Если Grafana уже была запущена со старым volume и дашборд не обновился, перезапусти только Grafana. Удалять `grafana_data` обычно не нужно.
+## Продакшен (VPS)
 
-## VPS access
+Развёрнут на Oracle Cloud, Ubuntu 22.04.
 
-On the VPS, Grafana is served through nginx over HTTPS:
+| Сервис | URL |
+|--------|-----|
+| Grafana | https://antifraud-aadov.duckdns.org/ |
+| Dashboard | https://antifraud-aadov.duckdns.org/d/antifraud-lab/antifraud-lab |
+| FastAPI | https://antifraud-aadov.duckdns.org/fraud-api/ |
 
-- Grafana: `https://antifraud-aadov.duckdns.org/`
-- Dashboard: `https://antifraud-aadov.duckdns.org/d/antifraud-lab/antifraud-lab`
-- FastAPI through nginx: `https://antifraud-aadov.duckdns.org/fraud-api/`
-
-Docker service ports are bound to `127.0.0.1` and are not intended to be exposed directly to the internet.
+Внутренние порты привязаны к `127.0.0.1` и не доступны напрямую из интернета.

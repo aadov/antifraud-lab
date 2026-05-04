@@ -9,7 +9,14 @@ contactPoints:
           bottoken: ${TELEGRAM_BOT_TOKEN}
           chatid: "456104186"
           message: |
-            🚨 Antifraud Alert
+            🚨 *Antifraud Alert*
+
             {{ range .Alerts }}
-            {{ .Annotations.summary }}
+            📛 *{{ .Labels.alertname }}*
+            📊 {{ .Annotations.summary }}
+            📈 {{ .Annotations.description }}
+            🕐 {{ .StartsAt.Format "2006-01-02 15:04:05" }}
             {{ end }}
+            🔗 https://antifraud-aadov.duckdns.org/d/antifraud-lab/antifraud-lab
+          parse_mode: Markdown
+        disableResolveMessage: false

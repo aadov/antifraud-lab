@@ -40,5 +40,6 @@ groups:
         for: 1m
         annotations:
           summary: "BLOCK rate превысил 50% за последние 5 минут"
+          description: "Заблокировано: {{ $values.A.Value | printf \"%.0f\" }} запросов из {{ $values.B.Value | printf \"%.0f\" }} ({{ $values.C.Value | printf \"%.1f\" }}%)"
         labels: {}
         isPaused: false

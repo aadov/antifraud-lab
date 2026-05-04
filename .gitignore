@@ -3,4 +3,4 @@ __pycache__/
 .env
 scripts/
 .env*
-.venv
+.venv/

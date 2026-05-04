@@ -1,51 +1,64 @@
-# Antifraud Lab
+# Anti-Fraud Lab
 
-Учебный SOC pipeline на базе FastAPI + PostgreSQL + Loki + Grafana.
-Симулирует антифрод систему с real-time мониторингом и алертами в Telegram.
+Anti-Fraud Lab is a small production-style fraud detection and observability system.
 
-## Архитектура
-Internet
-                        │
-                   nginx 80/443
-                   Let's Encrypt
-                        │
-          ┌─────────────┼─────────────┐
-          │                           │
-     /fraud-api/                      /
-    FastAPI :8100               Grafana :3001
-          │                           │
-     PostgreSQL :5433            Loki :3100
-          │                           │
-       Promtail ◄──── Docker logs ────┘
-Все внутренние порты слушают только `127.0.0.1`. Наружу открыты только 80/443 через nginx.
+It simulates login risk scoring, stores events, emits structured JSON logs, and visualizes fraud signals in Grafana through Loki. The project is built to demonstrate practical DevOps / DevSecOps skills around backend services, containerized deployment, monitoring, logging, and detection logic.
 
-## Стек
+## What this project demonstrates
 
-- **FastAPI** — API сервис с Pydantic валидацией и JSON логированием
-- **PostgreSQL** — хранение событий и истории пользователей
-- **Loki + Promtail** — сбор и хранение логов
-- **Grafana** — дашборд и алерты
-- **Docker Compose** — оркестрация 6 сервисов
-- **nginx + Let's Encrypt** — reverse proxy с SSL
+- FastAPI backend for risk evaluation
+- PostgreSQL-backed event history
+- Rule-based anti-fraud detection logic
+- Structured JSON logging for security events
+- Loki + Promtail log collection
+- Grafana dashboard provisioning
+- Docker Compose deployment
+- Localhost-only service exposure behind reverse proxy
+- Automated tests for fraud rules
+- GitHub Actions CI
+
+## Architecture
+
+```txt
+Client / Seeder
+      |
+      v
+FastAPI /login endpoint
+      |
+      +--> Risk rules engine
+      |
+      +--> PostgreSQL event history
+      |
+      +--> Structured JSON logs
+                    |
+                    v
+              Promtail
+                    |
+                    v
+                 Loki
+                    |
+                    v
+                Grafana
+```
 
 ## Быстрый старт
 
 ### 1. Клонируй репозиторий
 
-\`\`\`bash
+```bash
 git clone https://github.com/aadov/antifraud-lab.git
 cd antifraud-lab
-\`\`\`
+```
 
 ### 2. Создай `.env`
 
-\`\`\`bash
+```bash
 cp .env.example .env
-\`\`\`
+```
 
 Заполни переменные:
 
-\`\`\`env
+```env
 # Telegram алерты
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
@@ -58,22 +71,33 @@ GF_SMTP_PASSWORD=your_app_password
 GF_SMTP_FROM_ADDRESS=your@gmail.com
 GF_SMTP_FROM_NAME=Grafana
 GF_SMTP_STARTTLS_POLICY=MandatoryStartTLS
-\`\`\`
+```
 
 Получить TELEGRAM_CHAT_ID:
 
-\`\`\`bash
+```bash
 curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
-\`\`\`
+```
 
 ### 3. Запусти
 
-\`\`\`bash
+```bash
 docker compose up -d
-\`\`\`
+```
 
 - API: http://localhost:8100
 - Grafana: http://localhost:3001 (admin/admin)
+
+
+## Common commands
+
+```bash
+make up       # start the stack
+make seed     # generate demo events
+make logs     # follow API logs
+make test     # run unit tests
+make down     # stop the stack
+```
 
 ## API
 
@@ -83,7 +107,7 @@ docker compose up -d
 
 Пример запроса:
 
-\`\`\`json
+```json
 {
   "user_id": "client_001",
   "ip": "185.22.10.11",
@@ -92,17 +116,17 @@ docker compose up -d
   "hour": 3,
   "failed_attempts": 4
 }
-\`\`\`
+```
 
 Пример ответа:
 
-\`\`\`json
+```json
 {
   "risk_score": 95,
   "decision": "BLOCK",
   "reasons": ["new_device", "night_login", "many_failed_attempts", "foreign_country"]
 }
-\`\`\`
+```
 
 ## Антифрод логика
 
@@ -136,9 +160,9 @@ docker compose up -d
 
 seed.sh симулирует три сценария атак:
 
-\`\`\`bash
+```bash
 bash seed.sh
-\`\`\`
+```
 
 - **burst** — массовая атака с одного IP
 - **impossible_travel** — смена страны за короткое время
@@ -160,10 +184,10 @@ bash seed.sh
 
 Настройка через provisioning — токен и chat_id берутся из .env:
 
-\`\`\`
+```
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
-\`\`\`
+```
 
 Конфиги алертов: provisioning/alerting/
 
@@ -179,10 +203,10 @@ TELEGRAM_CHAT_ID=...
 
 После обновления на VPS:
 
-\`\`\`bash
+```bash
 git pull
 docker compose up -d --force-recreate grafana
-\`\`\`
+```
 
 ## Продакшен (VPS)
 
